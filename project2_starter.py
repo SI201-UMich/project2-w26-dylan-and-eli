@@ -1,7 +1,7 @@
 # SI 201 HW4 (Library Checkout System)
-# Your name:
-# Your student id:
-# Your email:
+# Your name: Dylan Pomeroy
+# Your student id:80733850
+# Your email:dylanpom@umich.edu
 # Who or what you worked with on this homework (including generative AI like ChatGPT):
 # If you worked with generative AI also add a statement for how you used it.
 # e.g.:
@@ -37,11 +37,25 @@ def load_listing_results(html_path) -> list[tuple]:
     Returns:
         list[tuple]: A list of tuples containing (listing_title, listing_id)
     """
+
     # TODO: Implement checkout logic following the instructions
+
     # ==============================
     # YOUR CODE STARTS HERE
     # ==============================
-    pass
+
+    listings = []
+    data = open(html_path, encoding="utf-8-sig").read()
+    soup = BeautifulSoup(data, "html.parser")
+    listing_elements = soup.find_all("div", class_="listing")
+
+    for element in listing_elements:
+        title = element.find("h3", class_="listing-title").text.strip()
+        listing_id = element["data-listing-id"]
+        listings.append((title, listing_id))
+
+    return listings
+
     # ==============================
     # YOUR CODE ENDS HERE
     # ==============================
@@ -70,7 +84,27 @@ def get_listing_details(listing_id) -> dict:
     # ==============================
     # YOUR CODE STARTS HERE
     # ==============================
-    pass
+
+    formatted_id = listing_id.zfill(7)
+    file_path = os.path.join("html_files", f"listing_{formatted_id}.html")
+    data = open(file_path, encoding="utf-8-sig").read()
+    soup = BeautifulSoup(data, "html.parser")
+    policy_number = soup.find("span", class_="policy-number").text.strip()
+    host_type = soup.find("span", class_="host-type").text.strip()
+    host_name = soup.find("span", class_="host-name").text.strip()
+    room_type = soup.find("span", class_="room-type").text.strip()
+    location_rating = float(soup.find("span", class_="location-rating").text.strip())
+
+    return {
+        listing_id: {
+            "policy_number": policy_number,
+            "host_type": host_type,
+            "host_name": host_name,
+            "room_type": room_type,
+            "location_rating": location_rating
+        }
+    }
+
     # ==============================
     # YOUR CODE ENDS HERE
     # ==============================
@@ -91,7 +125,13 @@ def create_listing_database(html_path) -> list[tuple]:
     # ==============================
     # YOUR CODE STARTS HERE
     # ==============================
-    pass
+    listings = load_listing_results(html_path)
+    detailed_data = []
+    for title, listing_id in listings:
+        details = get_listing_details(listing_id)
+        detailed_data.append((title, listing_id, details[listing_id]))
+    return detailed_data
+
     # ==============================
     # YOUR CODE ENDS HERE
     # ==============================
