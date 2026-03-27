@@ -184,20 +184,13 @@ def output_csv(data, filename) -> None:
     # ==============================
     # YOUR CODE STARTS HERE
     # ==============================
-    data_sorted = sorted(data, key=lambda x: x[6], reverse=True)
+    sorted_data = sorted(data, key=lambda x: x[6], reverse=True)
 
-    with open(filename, "w", newline="", encoding="utf-8-sig") as f:
-        writer = csv.writer(f)
+    with open(filename, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerows(sorted_data)
 
-        writer.writerow([
-            "listing_title", "listing_id", "policy_number",
-            "host_type", "host_name", "room_type", "location_rating"
-        ])
-
-        for row in data_sorted:
-            writer.writerow(row)
-
-    pass
+    
     # ==============================
     # YOUR CODE ENDS HERE
     # ==============================
@@ -220,21 +213,26 @@ def avg_location_rating_by_room_type(data) -> dict:
     # ==============================
     # YOUR CODE STARTS HERE
     # ==============================
+    
     totals = {}
     counts = {}
 
     for row in data:
-        room_type = row[5]
-        rating = row[6]
+        room_type = row[3]       
+        location_rating = row[6] 
 
-        if rating == 0.0:
+        if location_rating == 0.0:
             continue
 
-        totals[room_type] = totals.get(room_type, 0) + rating
-        counts[room_type] = counts.get(room_type, 0) + 1
+        if room_type not in totals:
+            totals[room_type] = 0.0
+            counts[room_type] = 0
 
-    return {rt: round(totals[rt] / counts[rt], 1) for rt in totals}
-    pass
+        totals[room_type] += location_rating
+        counts[room_type] += 1
+
+    return {room_type: totals[room_type] / counts[room_type] for room_type in totals}
+    
     # ==============================
     # YOUR CODE ENDS HERE
     # ==============================
@@ -255,21 +253,24 @@ def validate_policy_numbers(data) -> list[str]:
     # ==============================
     # YOUR CODE STARTS HERE
     # ==============================
-    invalid = []
+    VALID_PATTERN = re.compile(r'^STR-\d{8}$')  
+    IGNORE = {"Pending", "Exempt"}
+
+    invalid_ids = []
 
     for row in data:
-        listing_id = row[1]
-        policy = row[2]
+        listing_id   = row[0]  
+        policy_number = row[5] 
 
-        if policy in ["Pending", "Exempt"]:
+        if policy_number in IGNORE:
             continue
 
-        if not re.match(r"STR-\d+", policy):
-            invalid.append(listing_id)
+        if not VALID_PATTERN.match(policy_number):
+            invalid_ids.append(listing_id)
 
-    return invalid
+    return invalid_ids
 
-    pass
+    
     # ==============================
     # YOUR CODE ENDS HERE
     # ==============================
@@ -289,6 +290,29 @@ def google_scholar_searcher(query):
     # ==============================
     # YOUR CODE STARTS HERE
     # ==============================
+    
+    query = query.replace(" ", "+")
+
+    url = f"https://scholar.google.com/scholar?q={query}"
+
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
+
+    response = requests.get(url, headers=headers)
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    titles = []
+    results = soup.find_all("h3", class_="gs_rt")
+
+    for result in results:
+        if result.a:
+            titles.append(result.a.text.strip())
+        else:
+            titles.append(result.text.strip())
+
+    return titles
 
     pass
     # ==============================
