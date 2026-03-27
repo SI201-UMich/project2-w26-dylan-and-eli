@@ -19,7 +19,7 @@ import csv
 import unittest
 import requests  # kept for extra credit parity
 import os
-print(os.listdir())
+
 
 # IMPORTANT NOTE:
 """
@@ -188,6 +188,12 @@ def output_csv(data, filename) -> None:
 
     with open(filename, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
+
+        writer.writerow([
+            "listing_title", "listing_id", "policy_number",
+            "host_type", "host_name", "room_type", "location_rating"
+        ])
+        
         writer.writerows(sorted_data)
 
     
@@ -218,7 +224,7 @@ def avg_location_rating_by_room_type(data) -> dict:
     counts = {}
 
     for row in data:
-        room_type = row[3]       
+        room_type = row[5]       
         location_rating = row[6] 
 
         if location_rating == 0.0:
@@ -253,14 +259,14 @@ def validate_policy_numbers(data) -> list[str]:
     # ==============================
     # YOUR CODE STARTS HERE
     # ==============================
-    VALID_PATTERN = re.compile(r'^STR-\d{8}$')  
+    VALID_PATTERN = re.compile(r'^STR-\d+')  
     IGNORE = {"Pending", "Exempt"}
 
     invalid_ids = []
 
     for row in data:
-        listing_id   = row[0]  
-        policy_number = row[5] 
+        listing_id   = row[1]  
+        policy_number = row[2] 
 
         if policy_number in IGNORE:
             continue
@@ -290,7 +296,7 @@ def google_scholar_searcher(query):
     # ==============================
     # YOUR CODE STARTS HERE
     # ==============================
-    
+
     query = query.replace(" ", "+")
 
     url = f"https://scholar.google.com/scholar?q={query}"
@@ -314,7 +320,6 @@ def google_scholar_searcher(query):
 
     return titles
 
-    pass
     # ==============================
     # YOUR CODE ENDS HERE
     # ==============================
@@ -391,7 +396,7 @@ class TestCases(unittest.TestCase):
         )
 
         os.remove(out_path)
-        os.remove(out_path)
+       
 
     def test_avg_location_rating_by_room_type(self):
         # TODO: Call avg_location_rating_by_room_type() and save the output.
