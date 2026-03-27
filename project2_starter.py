@@ -18,7 +18,8 @@ import os
 import csv
 import unittest
 import requests  # kept for extra credit parity
-
+import os
+print(os.listdir())
 
 # IMPORTANT NOTE:
 """
@@ -45,8 +46,10 @@ def load_listing_results(html_path) -> list[tuple]:
     # ==============================
 
     listings = []
-    data = open(html_path, encoding="utf-8-sig").read()
-    soup = BeautifulSoup(data, "html.parser")
+
+    with open(html_path, encoding="utf-8-sig") as f:
+        soup = BeautifulSoup(f.read(), "html.parser")
+
     listing_elements = soup.find_all("div", class_="listing")
 
     for element in listing_elements:
@@ -55,7 +58,6 @@ def load_listing_results(html_path) -> list[tuple]:
         listings.append((title, listing_id))
 
     return listings
-
     # ==============================
     # YOUR CODE ENDS HERE
     # ==============================
@@ -85,15 +87,31 @@ def get_listing_details(listing_id) -> dict:
     # YOUR CODE STARTS HERE
     # ==============================
 
-    formatted_id = listing_id.zfill(7)
-    file_path = os.path.join("html_files", f"listing_{formatted_id}.html")
-    data = open(file_path, encoding="utf-8-sig").read()
-    soup = BeautifulSoup(data, "html.parser")
-    policy_number = soup.find("span", class_="policy-number").text.strip()
-    host_type = soup.find("span", class_="host-type").text.strip()
-    host_name = soup.find("span", class_="host-name").text.strip()
-    room_type = soup.find("span", class_="room-type").text.strip()
-    location_rating = float(soup.find("span", class_="location-rating").text.strip())
+    file_name = f"listing_{listing_id}.html"
+
+    with open(os.path.join("html_files", file_name), encoding="utf-8-sig") as f:
+        soup = BeautifulSoup(f.read(), "html.parser")
+
+    text = soup.get_text(" ", strip=True)
+
+    
+    policy_match = re.search(r"(STR[- ]?\d+)", text)
+    policy_number = policy_match.group(1) if policy_match else "Pending"
+
+    host_match = re.search(r"hosted by ([A-Za-z]+)", text, re.IGNORECASE)
+    host_name = host_match.group(1) if host_match else ""
+
+    host_type = "Superhost" if "Superhost" in text else "Regular"
+
+    if "Entire" in text:
+        room_type = "Entire Room"
+    elif "Private" in text:
+        room_type = "Private Room"
+    else:
+        room_type = ""
+
+    rating_match = re.search(r"(\d\.\d)\s*location", text.lower())
+    location_rating = float(rating_match.group(1)) if rating_match else 0.0
 
     return {
         listing_id: {
@@ -104,6 +122,7 @@ def get_listing_details(listing_id) -> dict:
             "location_rating": location_rating
         }
     }
+
 
     # ==============================
     # YOUR CODE ENDS HERE
@@ -127,9 +146,20 @@ def create_listing_database(html_path) -> list[tuple]:
     # ==============================
     listings = load_listing_results(html_path)
     detailed_data = []
+
     for title, listing_id in listings:
-        details = get_listing_details(listing_id)
-        detailed_data.append((title, listing_id, details[listing_id]))
+        details = get_listing_details(listing_id)[listing_id]
+
+        detailed_data.append((
+            title,
+            listing_id,
+            details["policy_number"],
+            details["host_type"],
+            details["host_name"],
+            details["room_type"],
+            details["location_rating"]
+        ))
+
     return detailed_data
 
     # ==============================
@@ -154,6 +184,19 @@ def output_csv(data, filename) -> None:
     # ==============================
     # YOUR CODE STARTS HERE
     # ==============================
+    data_sorted = sorted(data, key=lambda x: x[6], reverse=True)
+
+    with open(filename, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.writer(f)
+
+        writer.writerow([
+            "listing_title", "listing_id", "policy_number",
+            "host_type", "host_name", "room_type", "location_rating"
+        ])
+
+        for row in data_sorted:
+            writer.writerow(row)
+
     pass
     # ==============================
     # YOUR CODE ENDS HERE
@@ -177,6 +220,20 @@ def avg_location_rating_by_room_type(data) -> dict:
     # ==============================
     # YOUR CODE STARTS HERE
     # ==============================
+    totals = {}
+    counts = {}
+
+    for row in data:
+        room_type = row[5]
+        rating = row[6]
+
+        if rating == 0.0:
+            continue
+
+        totals[room_type] = totals.get(room_type, 0) + rating
+        counts[room_type] = counts.get(room_type, 0) + 1
+
+    return {rt: round(totals[rt] / counts[rt], 1) for rt in totals}
     pass
     # ==============================
     # YOUR CODE ENDS HERE
@@ -198,6 +255,20 @@ def validate_policy_numbers(data) -> list[str]:
     # ==============================
     # YOUR CODE STARTS HERE
     # ==============================
+    invalid = []
+
+    for row in data:
+        listing_id = row[1]
+        policy = row[2]
+
+        if policy in ["Pending", "Exempt"]:
+            continue
+
+        if not re.match(r"STR-\d+", policy):
+            invalid.append(listing_id)
+
+    return invalid
+
     pass
     # ==============================
     # YOUR CODE ENDS HERE
@@ -218,6 +289,7 @@ def google_scholar_searcher(query):
     # ==============================
     # YOUR CODE STARTS HERE
     # ==============================
+
     pass
     # ==============================
     # YOUR CODE ENDS HERE
@@ -235,6 +307,9 @@ class TestCases(unittest.TestCase):
     def test_load_listing_results(self):
         # TODO: Check that the number of listings extracted is 18.
         # TODO: Check that the FIRST (title, id) tuple is  ("Loft in Mission District", "1944564").
+        self.assertEqual(len(self.listings), 18)
+        self.assertEqual(self.listings[0], ("Loft in Mission District", "1944564"))
+
         pass
 
     def test_get_listing_details(self):
@@ -246,6 +321,15 @@ class TestCases(unittest.TestCase):
         # 1) Check that listing 467507 has the correct policy number "STR-0005349".
         # 2) Check that listing 1944564 has the correct host type "Superhost" and room type "Entire Room".
         # 3) Check that listing 1944564 has the correct location rating 4.9.
+        ids = ["467507", "1550913", "1944564", "4614763", "6092596"]
+
+        results = [get_listing_details(i) for i in ids]
+
+        self.assertEqual(results[0]["467507"]["policy_number"], "STR-0005349")
+        self.assertEqual(results[2]["1944564"]["host_type"], "Superhost")
+        self.assertEqual(results[2]["1944564"]["room_type"], "Entire Room")
+        self.assertAlmostEqual(results[2]["1944564"]["location_rating"], 4.9)
+
         pass
 
     def test_create_listing_database(self):
@@ -253,6 +337,14 @@ class TestCases(unittest.TestCase):
         # (listing_title, listing_id, policy_number, host_type, host_name, room_type, location_rating)
 
         # TODO: Spot-check the LAST tuple is ("Guest suite in Mission District", "467507", "STR-0005349", "Superhost", "Jennifer", "Entire Room", 4.8).
+        self.assertEqual(len(self.detailed_data[0]), 7)
+
+        self.assertEqual(
+            self.detailed_data[-1],
+            ("Guest suite in Mission District", "467507", "STR-0005349",
+             "Superhost", "Jennifer", "Entire Room", 4.8)
+        )
+
         pass
 
     def test_output_csv(self):
@@ -261,17 +353,36 @@ class TestCases(unittest.TestCase):
         # TODO: Call output_csv() to write the detailed_data to a CSV file.
         # TODO: Read the CSV back in and store rows in a list.
         # TODO: Check that the first data row matches ["Guesthouse in San Francisco", "49591060", "STR-0000253", "Superhost", "Ingrid", "Entire Room", "5.0"].
+        out_path = os.path.join(self.base_dir, "test.csv")
 
+        output_csv(self.detailed_data, out_path)
+
+        with open(out_path, encoding="utf-8-sig") as f:
+            reader = list(csv.reader(f))
+
+        self.assertEqual(
+            reader[1],
+            ["Guesthouse in San Francisco", "49591060", "STR-0000253",
+             "Superhost", "Ingrid", "Entire Room", "5.0"]
+        )
+
+        os.remove(out_path)
         os.remove(out_path)
 
     def test_avg_location_rating_by_room_type(self):
         # TODO: Call avg_location_rating_by_room_type() and save the output.
         # TODO: Check that the average for "Private Room" is 4.9.
+        result = avg_location_rating_by_room_type(self.detailed_data)
+        self.assertEqual(result["Private Room"], 4.9)
+
         pass
 
     def test_validate_policy_numbers(self):
         # TODO: Call validate_policy_numbers() on detailed_data and save the result into a variable invalid_listings.
         # TODO: Check that the list contains exactly "16204265" for this dataset.
+        invalid = validate_policy_numbers(self.detailed_data)
+        self.assertEqual(invalid, ["16204265"])
+
         pass
 
 
