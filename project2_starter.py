@@ -1,7 +1,7 @@
 # SI 201 HW4 (Library Checkout System)
-# Your name: Dylan Pomeroy
+# Your name: Dylan Pomeroy and Eli Mayhew
 # Your student id:80733850
-# Your email:dylanpom@umich.edu
+# Your email:dylanpom@umich.edu and elijama@umich.edu
 # Who or what you worked with on this homework (including generative AI like ChatGPT):
 # If you worked with generative AI also add a statement for how you used it.
 # e.g.:
@@ -193,7 +193,7 @@ def output_csv(data, filename) -> None:
             "listing_title", "listing_id", "policy_number",
             "host_type", "host_name", "room_type", "location_rating"
         ])
-        
+
         writer.writerows(sorted_data)
 
     
